@@ -713,14 +713,11 @@ static void configure(struct context *ctx, AVPacket **ifb)
 	OMX_PARAM_PORTDEFINITIONTYPE	*imgportdef;
 	OMX_IMAGE_PORTDEFINITIONTYPE	*imgdef;
 	OMX_VIDEO_PARAM_PORTFORMATTYPE	*pfmt;
-	OMX_CONFIG_POINTTYPE		*pixaspect;
 	OMX_HANDLETYPE			dec, enc, rsz, spl, vid;
 	int				x, y;
-	int				i;
 
 	MAKEME(portdef, OMX_PARAM_PORTDEFINITIONTYPE);
 	MAKEME(imgportdef, OMX_PARAM_PORTDEFINITIONTYPE);
-	MAKEME(pixaspect, OMX_CONFIG_POINTTYPE);
 
 /* These just save a bit of typing.  No other reason. */
 	dec = ctx->dec;
@@ -802,7 +799,7 @@ static void configure(struct context *ctx, AVPacket **ifb)
 			NULL));
 		portdef->nPortIndex = PORT_VID;
 //		OERR(OMX_SetParameter(vid, OMX_IndexParamPortDefinition, portdef));
-dumpport(spl, PORT_SPL);
+		dumpport(spl, PORT_SPL);
 		portdef->nPortIndex = PORT_SPL;
 		OERR(OMX_SetParameter(spl, OMX_IndexParamPortDefinition,
 			portdef));
@@ -865,13 +862,6 @@ dumpport(spl, PORT_SPL);
 	pfmt->eColorFormat = OMX_COLOR_FormatYUV420PackedPlanar;
 	pfmt->xFramerate = viddef->xFramerate;
 
-	pixaspect->nPortIndex = PORT_ENC+1;
-	pixaspect->nX = 64;
-	pixaspect->nY = 45;
-//	OERR(OMX_SetParameter(dec, OMX_IndexParamBrcmPixelAspectRatio, pixaspect));
-
-//		DUMPPORT(enc, PORT_ENC+1); exit(0);
-
 	pfmt->nPortIndex = PORT_ENC+1;
 	pfmt->nIndex = 1;
 	pfmt->eCompressionFormat = OMX_VIDEO_CodingAVC;
@@ -907,13 +897,6 @@ printf("Interlacing: %d\n", ic->streams[vidindex]->codec->field_order);
 
 	ctx->encbufs = encbufs = allocbufs(enc, PORT_ENC+1, 1);
 	OERR(OMX_SendCommand(dec, OMX_CommandPortEnable, PORT_DEC+1, NULL));
-	if (ctx->resize) {
-		OERR(OMX_SendCommand(rsz, OMX_CommandPortEnable, PORT_RSZ,
-			NULL));
-		OERR(OMX_SendCommand(rsz, OMX_CommandPortEnable, PORT_RSZ+1,
-			NULL));
-	}
-
 	OERR(OMX_SendCommand(enc, OMX_CommandPortEnable, PORT_ENC, NULL));
 
 	if (ctx->flags & FLAGS_MONITOR) {
@@ -935,11 +918,12 @@ printf("Post-sleep.\n"); fflush(stdout);
 			OMX_StateExecuting, NULL));
 	}
 
-	if (ctx->resize)
-		OERR(OMX_SendCommand(rsz, OMX_CommandStateSet,
-			OMX_StateExecuting, NULL));
-	OERR(OMX_SendCommand(enc, OMX_CommandStateSet,
-		OMX_StateExecuting, NULL));
+	if (ctx->resize) {
+		OERR(OMX_SendCommand(rsz, OMX_CommandPortEnable, PORT_RSZ,   NULL));
+		OERR(OMX_SendCommand(rsz, OMX_CommandPortEnable, PORT_RSZ+1, NULL));
+		OERR(OMX_SendCommand(rsz, OMX_CommandStateSet, OMX_StateExecuting, NULL));
+	}
+	OERR(OMX_SendCommand(enc, OMX_CommandStateSet, OMX_StateExecuting, NULL));
 	sleep(1);
 	OERR(OMX_FillThisBuffer(enc, encbufs));
 
