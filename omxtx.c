@@ -156,6 +156,7 @@ static struct context {
 	char		*oname;
 	double		frameduration;
 } ctx;
+
 #define FLAGS_VERBOSE		(1<<0)
 #define FLAGS_DECEMPTIEDBUF	(1<<1)
 #define FLAGS_MONITOR		(1<<2)
@@ -188,17 +189,12 @@ static void dumpport(OMX_HANDLETYPE handle, int port)
 	switch (portdef->eDomain) {
 	case OMX_PortDomainVideo:
 		printf("Video type is currently:\n"
-			"\tMIME:\t\t%s\n"
-			"\tNative:\t\t%p\n"
-			"\tWidth:\t\t%d\n"
-			"\tHeight:\t\t%d\n"
-			"\tStride:\t\t%d\n"
-			"\tSliceHeight:\t%d\n"
-			"\tBitrate:\t%d\n"
-			"\tFramerate:\t%d (%x); (%f)\n"
+			"\tMIME:\t\t%s\tNative:\t\t%p\n"
+			"\tWidth:\t\t%d\tHeight:\t\t%d\n"
+			"\tStride:\t\t%d\tSliceHeight:\t%d\n"
+			"\tBitrate:\t%d\tFramerate:\t%d (%x); (%f)\n"
 			"\tError hiding:\t%d\n"
-			"\tCodec:\t\t%d\n"
-			"\tColour:\t\t%d\n",
+			"\tCodec:\t\t%d\tColour:\t\t%d\n",
 			viddef->cMIMEType, viddef->pNativeRender,
 			viddef->nFrameWidth, viddef->nFrameHeight,
 			viddef->nStride, viddef->nSliceHeight,
@@ -210,15 +206,11 @@ static void dumpport(OMX_HANDLETYPE handle, int port)
 		break;
 	case OMX_PortDomainImage:
 		printf("Image type is currently:\n"
-			"\tMIME:\t\t%s\n"
-			"\tNative:\t\t%p\n"
-			"\tWidth:\t\t%d\n"
-			"\tHeight:\t\t%d\n"
-			"\tStride:\t\t%d\n"
-			"\tSliceHeight:\t%d\n"
+			"\tMIME:\t\t%s\tNative:\t\t%p\n"
+			"\tWidth:\t\t%d\tHeight:\t\t%d\n"
+			"\tStride:\t\t%d\tSliceHeight:\t%d\n"
 			"\tError hiding:\t%d\n"
-			"\tCodec:\t\t%d\n"
-			"\tColour:\t\t%d\n",
+			"\tCodec:\t\t%d\tColour:\t\t%d\n",
 			portdef->format.image.cMIMEType,
 			portdef->format.image.pNativeRender,
 			portdef->format.image.nFrameWidth,
@@ -257,6 +249,26 @@ static int mapcodec(enum CodecID id)
 }
 
 
+
+static const char *mapstate(OMX_STATETYPE state) {
+	switch (state) {
+		case OMX_StateLoaded:
+			return "loaded";
+		case OMX_StateIdle:
+			return "idle";
+		case OMX_StateExecuting:
+			return "executing";
+		case OMX_StatePause:
+			return "paused";
+		case OMX_StateWaitForResources:
+			return "waiting for resources";
+		default:
+			return "unknown???";
+	}
+}
+
+
+
 static void dumpportstate(void)
 {
 	enum OMX_STATETYPE		state;
@@ -268,9 +280,9 @@ static void dumpportstate(void)
 	dumpport(ctx.enc, PORT_ENC+1);
 
 	OMX_GetState(ctx.dec, &state);
-	printf("Decoder state: %d\n", state);
+	printf("Decoder state: %d (%s)\n", state, mapstate(state));
 	OMX_GetState(ctx.enc, &state);
-	printf("Encoder state: %d\n", state);
+	printf("Encoder state: %d (%s)\n", state, mapstate(state));
 }
 
 
@@ -370,8 +382,6 @@ printf("Time base: %d/%d, fps %d/%d\n", oflow->time_base.num, oflow->time_base.d
 			oc->streams[i]->codec->sample_rate = 48000; /* ish */
 	}
 
-printf("\n\n\nInput:\n");
-	av_dump_format(ic, 0, oname, 0);
 printf("\n\n\nOutput:\n");
 	av_dump_format(oc, 0, oname, 1);
 
@@ -1080,6 +1090,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	printf("\nInput:\n");
 	av_dump_format(ic, 0, iname, 0);
 
 	vidindex = av_find_best_stream(ic, AVMEDIA_TYPE_VIDEO, -1, -1,
@@ -1089,10 +1100,7 @@ int main(int argc, char *argv[])
 			iname);
 		exit(1);
 	}
-	printf("Found a video at index %d\n", vidindex);
 
-	printf("Frame size: %dx%d\n", ic->streams[vidindex]->codec->width, 
-		ic->streams[vidindex]->codec->height);
 	ish264 = (ic->streams[vidindex]->codec->codec_id == CODEC_ID_H264);
 
 	/* Output init: */
@@ -1155,7 +1163,7 @@ int main(int argc, char *argv[])
 		mapcodec(ic->streams[vidindex]->codec->codec_id));
 	viddef->eCompressionFormat = 
 		mapcodec(ic->streams[vidindex]->codec->codec_id);
-	viddef->bFlagErrorConcealment = 0;
+	viddef->bFlagErrorConcealment =  OMX_FALSE;
 //	viddef->xFramerate = 25<<16;
 	OERR(OMX_SetParameter(dec, OMX_IndexParamPortDefinition, portdef));
 
